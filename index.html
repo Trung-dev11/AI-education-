@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF to Mindmap (Powered by Gemini)</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; text-align: center; }
+        .upload-container { border: 2px dashed #007bff; padding: 40px; border-radius: 10px; margin-bottom: 20px; }
+        button { background-color: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; margin-top: 10px;}
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        #loading { display: none; color: #555; margin: 20px 0; }
+        #mindmap-container { margin-top: 30px; text-align: left; background: #f8f9fa; padding: 20px; border-radius: 8px;}
+    </style>
+</head>
+<body>
+
+    <h1>Biến Bài Giảng PDF Thành Sơ Đồ Tư Duy</h1>
+    
+    <div class="upload-container">
+        <input type="file" id="pdfInput" accept="application/pdf" />
+        <br/>
+        <button id="generateBtn" onclick="generateMindmap()">Tạo Sơ Đồ Tư Duy</button>
+    </div>
+
+    <div id="loading">⏳ Hệ thống đang đọc PDF và trích xuất kiến thức (quá trình này có thể mất 10-30 giây)...</div>
+    
+    <div id="mindmap-container">
+        <pre id="mermaid-output" class="mermaid"></pre>
+    </div>
+
+    <!-- Nạp thư viện Mermaid.js -->
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: false, theme: 'default' });
+        
+        window.mermaid = mermaid; // Gán vào window để truy cập từ function bên dưới
+    </script>
+
+    <script>
+        async function generateMindmap() {
+            const fileInput = document.getElementById('pdfInput');
+            const generateBtn = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            const mermaidOutput = document.getElementById('mermaid-output');
+
+            if (fileInput.files.length === 0) {
+                alert('Vui lòng chọn một file PDF!');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('pdfFile', fileInput.files[0]);
+
+            // Cập nhật UI
+            generateBtn.disabled = true;
+            loading.style.display = 'block';
+            mermaidOutput.removeAttribute('data-processed');
+            mermaidOutput.innerHTML = '';
+
+            try {
+                const response = await fetch('http://localhost:3000/api/generate-mindmap', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Chèn code Mermaid nhận được từ API vào thẻ <pre>
+                    mermaidOutput.innerHTML = data.mindmapCode;
+                    
+                    // Kích hoạt Mermaid render lại đồ thị
+                    await window.mermaid.run({
+                        nodes: [mermaidOutput]
+                    });
+                } else {
+                    alert('Lỗi: ' + data.error);
+                }
+            } catch (error) {
+                alert('Đã xảy ra lỗi kết nối với máy chủ.');
+                console.error(error);
+            } finally {
+                generateBtn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
